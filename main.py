@@ -38,7 +38,8 @@ if __name__ == '__main__':
     cv2.namedWindow('frame2')
     cv2.createTrackbar('Value 1', 'frame2', 0, 255, nothing)
     cv2.createTrackbar('Value 2', 'frame2', 0, 255, nothing)
-    
+    cv2.setTrackbarPos('Value 1', 'frame2', 100)
+    cv2.setTrackbarPos('Value 2', 'frame2', 255)
     while True:
         if cap.isOpened():
             ret, frame = cap.read()
