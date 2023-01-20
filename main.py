@@ -16,10 +16,78 @@ This is a temporary script file.
 import cv2
 import numpy as np
 
+class Measuring_window:
+    def __init__(self, x1, y1, x2, y2):
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+        self.height = None
+        self.weight = None
+        self.verify_points()
+        self.calculate_w_h()
+        self.new_x1 = None
+        self.new_y1 = None
+        self.new_x2 = None
+        self.new_y2 = None
+
+    def verify_points(self):
+        assert self.x1 != self.x2, "x1 is the same as x2"
+        if self.x1 > self.x2:
+            self.x1, self.x2 = x2, x1
+
+        assert self.y1 != self.y2, "y1 is the same as y2"
+        if self.y1 > self.y2:
+            self.y1, self.y2 = y2, y1
+
+    def calculate_w_h(self):
+        self.verify_points()
+        self.height = self.y2 - self.y1
+        self.weight = self.x2 - self.x2
+
+    def new_first_corner(self,x,y):
+        self.new_x1 = x
+        self.new_y1 = y
+
+    def new_second_corner(self,x,y):
+        self.x1 = self.new_x1
+        self.y1 = self.new_y1
+        self.x2 = x
+        self.y2 = y
+        self.calculate_new()
+
+    @property
+    def x_1(self): return self.x1
+
+    @property
+    def y_1(self): return self.y1
+
+    @property
+    def x_2(self): return self.x2
+
+    @property
+    def y_2(self): return self.y2
+
+    @property
+    def w(self): return self.weight
+
+    @property
+    def h(self): return self.height
+
+
 if __name__ == '__main__':
-    
+    mw = Measuring_window(150,200,320,400)
+
+    def click_event(event, x, y, flags, params):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            mw.new_first_corner(x,y)
+            print(f"down at : {x}, {y}")
+        elif event == cv2.EVENT_LBUTTONUP:
+            print(f"up at : {x}, {y}")
+            mw.new_second_corner(x,y)
+
     # load source
-    cap = cv2.VideoCapture("/home/crc9/Videos/20221107_110104.mp4")
+    cap = cv2.VideoCapture("20221107_110104.mp4")
 
     # size and position of measuring window 
     h = 150
@@ -32,17 +100,20 @@ if __name__ == '__main__':
     my_filter = []
     frame_time = 0
     frame_time_last = 0
-    
+
+    first_run = ()
+    mv = measuring_window(320,400,550,620)
     while True:
+
         if cap.isOpened():
             ret, frame = cap.read()
             
             if ret:
-                cropped = frame[y_l:y_h,x_l:x_h]
+                cropped = frame[mv.y1:mv.y2,mv.x1:mv.x2]
                 cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
                 _, threshold = cv2.threshold(cropped_gray, 100, 255, 1 )
                 # Calculate frame duration 
-                frame_time_last= frame_time
+                frame_time_last = frame_time
                 frame_time = cap.get(cv2.CAP_PROP_POS_MSEC) 
             else:
                 # If end of video - rewind
@@ -60,7 +131,7 @@ if __name__ == '__main__':
                         y_points.append(boundingRect[1])                # add to list of y points
                         
             histogram = []                                              # clear "histogram" of y points
-            for y in range(0,h):
+            for y in range(0,mv.h):
                 histogram.append(y_points.count(y))
                 cv2.line(cropped,(0,y),(y_points.count(y)*3,y),(0,0,255),1)     # display histogram
                 
@@ -112,6 +183,9 @@ if __name__ == '__main__':
             cv2.imshow("thr", threshold)
 
             cv2.imshow("frame", frame)
+
+            # add click event
+            cv2.setMouseCallback('frame', click_event)
             
             key = cv2.waitKey(10)
             
