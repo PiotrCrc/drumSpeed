@@ -37,16 +37,16 @@ class MeasWin:
             self.calculate_w_h()
 
     @property
-    def x_0(self): return self.x1
+    def x_1(self): return self.x1
 
     @property
-    def y_0(self): return self.y1
+    def y_1(self): return self.y1
 
     @property
-    def x_1(self): return self.x2
+    def x_2(self): return self.x2
 
     @property
-    def y_1(self): return self.y2
+    def y_2(self): return self.y2
 
     @property
     def w(self): return self.weight
