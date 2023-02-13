@@ -1,11 +1,20 @@
 import cv2
 import numpy as np
 import sys
+from measwin import MeasWin
 
-print(sys.argv)
 
 if __name__ == '__main__':
-    
+    mw = MeasWin(150,200,320,400)
+
+    def click_event(event, x, y, flags, params):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            mw.new_first_corner(x,y)
+            print(f"down at : {x}, {y}")
+        elif event == cv2.EVENT_LBUTTONUP:
+            print(f"up at : {x}, {y}")
+            mw.new_second_corner(x,y)
+
     # load source
     cap = cv2.VideoCapture(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=1")
 
@@ -20,17 +29,20 @@ if __name__ == '__main__':
     my_filter = []
     frame_time = 0
     frame_time_last = 0
-    
+
+    first_run = ()
+
     while True:
+
         if cap.isOpened():
             ret, frame = cap.read()
             
             if ret:
-                cropped = frame[y_l:y_h,x_l:x_h]
+                cropped = frame[mv.y1:mv.y2,mv.x1:mv.x2]
                 cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
                 _, threshold = cv2.threshold(cropped_gray, 100, 255, 1 )
                 # Calculate frame duration 
-                frame_time_last= frame_time
+                frame_time_last = frame_time
                 frame_time = cap.get(cv2.CAP_PROP_POS_MSEC) 
             else:
                 # If end of video - rewind
@@ -48,7 +60,7 @@ if __name__ == '__main__':
                         y_points.append(boundingRect[1])                # add to list of y points
                         
             histogram = []                                              # clear "histogram" of y points
-            for y in range(0,h):
+            for y in range(0,mv.h):
                 histogram.append(y_points.count(y))
                 cv2.line(cropped,(0,y),(y_points.count(y)*3,y),(0,0,255),1)     # display histogram
                 
@@ -100,6 +112,9 @@ if __name__ == '__main__':
             cv2.imshow("thr", threshold)
 
             cv2.imshow("frame", frame)
+
+            # add click event
+            cv2.setMouseCallback('frame', click_event)
             
             key = cv2.waitKey(10)
             
