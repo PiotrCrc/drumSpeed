@@ -2,14 +2,17 @@ import cv2
 import numpy as np
 import sys
 from measwin import MeasWin
+from fpsmeas import FpsMeas
 
 def _():
     pass
 
 if __name__ == '__main__':
     mw = MeasWin(150,200,320,400)
+    fps = FpsMeas(array_size=30)
 
     cv2.namedWindow('thr')
+    cv2.namedWindow('frame')
     cv2.createTrackbar('Threshold', 'thr', 0, 255, _)
     cv2.createTrackbar('Area_max', 'frame', 0, 1000, _)
     cv2.createTrackbar('Area_min', 'frame', 0, 1000, _)
@@ -22,8 +25,8 @@ if __name__ == '__main__':
             mw.new_second_corner(x,y)
 
     # load source
-    cap = cv2.VideoCapture(0)
-        #(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=1")
+    #cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=0")
 
     my_filter = []
     frame_time = 0
@@ -32,7 +35,6 @@ if __name__ == '__main__':
     first_run = True
 
     while True:
-
         threshold_value = cv2.getTrackbarPos('Threshold', 'thr')
         area_max_value = cv2.getTrackbarPos('Area_max', 'frame')
         area_min_value = cv2.getTrackbarPos('Area_min', 'frame')
@@ -40,18 +42,18 @@ if __name__ == '__main__':
             cv2.setTrackbarPos('Threshold', 'thr', 100)
             cv2.setTrackbarPos('Area_max', 'frame', 150)
             cv2.setTrackbarPos('Area_min', 'frame', 100)
+            fps.set_act()
             first_run = False
 
         if cap.isOpened():
-            ret, frame = cap.read()
-            
-            if ret:
+            ret, frame = cap.read()     
+            if ret:              
                 cropped = frame[mw.y_1:mw.y_2,mw.x_1:mw.x_2]
                 cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
                 _, threshold = cv2.threshold(cropped_gray, threshold_value, 255, 1 )
                 # Calculate frame duration 
-                frame_time_last = frame_time
-                frame_time = cap.get(cv2.CAP_PROP_POS_MSEC) 
+                # frame_time_last = frame_time
+                # frame_time = cap.get(cv2.CAP_PROP_POS_MSEC) 
 
             
             contours, hierarchy = cv2.findContours(threshold, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -107,9 +109,15 @@ if __name__ == '__main__':
             # cv2.putText(frame,text='{:.2f}px'.format(-np.average(diff))
             #             ,org=(x_h+15,y_l+25),color=(0,0 , 255)
             #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
-            # cv2.putText(frame,text='{:.2f}ms'.format(frame_time-frame_time_last)
-            #             ,org=(x_h+15,y_l+60),color=(0,0 , 255)
-            #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
+            cv2.putText(frame,text='{:.3f}ms'.format(fps.time_since_last(cap.get(cv2.CAP_PROP_POS_MSEC)))
+                        ,org=(mw.x1+15,mw.y2+20),color=(0,0 , 255)
+                        ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
+            cv2.putText(frame,text='{:.3f}ms'.format(fps.avg)
+                        ,org=(mw.x1+15,mw.y2+60),color=(0,0 , 255)
+                        ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
+            cv2.putText(frame,text='{:.3f}ms'.format(fps.max)
+                        ,org=(mw.x1+15,mw.y2+100),color=(0,0 , 255)
+                        ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
             # cv2.putText(frame,text='{:.2f}px/ms'.format((-np.average(diff))/(frame_time-frame_time_last))
             #             ,org=(x_h+15,y_l+95),color=(0,0 , 255)
             #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
