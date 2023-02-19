@@ -1,11 +1,13 @@
+import cv2
+
 class MeasWin:
     def __init__(self, x1, y1, x2, y2):
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
-        self.height = None
-        self.weight = None
+        self.h = None
+        self.w = None
         self.verify_points()
         self.calculate_w_h()
         self.new_x1 = None
@@ -36,20 +38,43 @@ class MeasWin:
             self.y2 = y
             self.calculate_w_h()
 
-    @property
-    def x_1(self): return self.x1
+class SpeedCalc():
+    def __init__(self, measwin : MeasWin, threshold, area_min, area_max) -> None:
+        self.measwin = measwin
+        self.threshold = threshold
+        self.area_min = area_min
+        self.area_max = area_max
+        self.frame = None
+        self.measwin_frame = None
+        self.bd_rects = None
+    
+    def set_threshold(self, threshold):
+        self.threshold = threshold
 
-    @property
-    def y_1(self): return self.y1
+    def set_area_min(self, area_min):
+        self.area_min = area_min
+    
+    def set_area_max(self, area_max):
+        self.area_max = area_max
 
-    @property
-    def x_2(self): return self.x2
+    def set_mw(self, measwin: MeasWin):
+        self.measwin = measwin
 
-    @property
-    def y_2(self): return self.y2
+    def prepare_measwin_frame(self,frame):
+        self.frame = frame
+        cropped = frame[self.measwin.y1:self.measwin.y2,
+                        self.measwin.x1:self.measwin.x2]
+        cropped = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+        _, self.measwin_frame = cv2.threshold(cropped, self.threshold, 255, 1 )
 
-    @property
-    def w(self): return self.weight
+    def find_rects(self):
+        contours, _ = cv2.findContours(self.measwin_frame, 
+                                        cv2.RETR_LIST, 
+                                        cv2.CHAIN_APPROX_SIMPLE)
+        # filter contours
+        contours = [contour for contour in contours if \
+                    (self.area_min < cv2.contourArea(contour) < self.area_max)]
 
-    @property
-    def h(self): return self.height
+        self.bd_rects = [cv2.boundingRect(contour) for contour in contours]
+        print(self.bd_rects)
+        

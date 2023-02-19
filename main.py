@@ -1,21 +1,61 @@
 import cv2
 import numpy as np
 import sys
-from measwin import MeasWin
+from measwin import MeasWin, SpeedCalc
 from fpsmeas import FpsMeas
+from threading import Thread
 
-def _():
+class VideoGet:
+    def __init__(self, src=0):
+        self.fps_meas = FpsMeas(array_size=30)
+        self.stream = cv2.VideoCapture(src)
+        (self.grabbed, self.frame) = self.stream.read()
+        self.stopped = False
+
+    def start(self):    
+        Thread(target=self.get, args=()).start()
+        return self
+
+    def get(self):
+        while not self.stopped:
+            if not self.grabbed:
+                self.stop()
+            else:
+                (self.grabbed, self.frame) = self.stream.read()
+                self.fps_meas.time_since_last()
+
+    def stop(self):
+        self.stopped = True
+
+def _(_):
     pass
+
+def filter_contours(contours, min_area : int, max_area : int):
+    result = []
+    for contour in contours:
+        if min_area < cv2.contourArea(contour) < max_area:
+            result.append(contour)
+    return(result)
+
+def boundrect2rect(br,offset_x = 0,offset_y = 0):
+    x,y,w,h = br
+    return((x+offset_x,y+offset_y,w,h))
 
 if __name__ == '__main__':
     mw = MeasWin(150,200,320,400)
+    sc = SpeedCalc(mw,35,2000,8000)
     fps = FpsMeas(array_size=30)
 
     cv2.namedWindow('thr')
     cv2.namedWindow('frame')
-    cv2.createTrackbar('Threshold', 'thr', 0, 255, _)
-    cv2.createTrackbar('Area_max', 'frame', 0, 1000, _)
-    cv2.createTrackbar('Area_min', 'frame', 0, 1000, _)
+    cv2.createTrackbar('Threshold', 'thr', 0, 255, sc.set_threshold)
+    cv2.createTrackbar('Area_max', 'frame', 0, 10000, sc.set_area_max)
+    cv2.createTrackbar('Area_min', 'frame', 0, 10000, sc.set_area_min)
+
+    cv2.setTrackbarPos('Threshold', 'thr', 50)
+    cv2.setTrackbarPos('Area_max', 'frame', 8000)
+    cv2.setTrackbarPos('Area_min', 'frame', 2000)
+
 
     def click_event(event, x, y, flags, params):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -23,10 +63,13 @@ if __name__ == '__main__':
         elif event == cv2.EVENT_LBUTTONUP:
             print(f"up at : {x}, {y}")
             mw.new_second_corner(x,y)
+            sc.set_mw(mw)
 
     # load source
-    #cap = cv2.VideoCapture(0)
-    cap = cv2.VideoCapture(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=0")
+    # cap = cv2.VideoCapture(0)
+    # cap = cv2.VideoCapture(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=1")
+    vg = VideoGet(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=0")
+    vg.start()
 
     my_filter = []
     frame_time = 0
@@ -35,41 +78,47 @@ if __name__ == '__main__':
     first_run = True
 
     while True:
-        threshold_value = cv2.getTrackbarPos('Threshold', 'thr')
         area_max_value = cv2.getTrackbarPos('Area_max', 'frame')
         area_min_value = cv2.getTrackbarPos('Area_min', 'frame')
         if first_run:
-            cv2.setTrackbarPos('Threshold', 'thr', 100)
-            cv2.setTrackbarPos('Area_max', 'frame', 150)
-            cv2.setTrackbarPos('Area_min', 'frame', 100)
+            cv2.setTrackbarPos('Threshold', 'thr', 50)
+            cv2.setTrackbarPos('Area_max', 'frame', 8000)
+            cv2.setTrackbarPos('Area_min', 'frame', 2000)
             fps.set_act()
+            
             first_run = False
 
-        if cap.isOpened():
-            ret, frame = cap.read()     
-            if ret:              
-                cropped = frame[mw.y_1:mw.y_2,mw.x_1:mw.x_2]
-                cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
-                _, threshold = cv2.threshold(cropped_gray, threshold_value, 255, 1 )
-                # Calculate frame duration 
+        if vg.grabbed:
+            ret, frame = vg.grabbed, vg.frame
+
+            if ret:     
+                sc.prepare_measwin_frame(frame)
+                sc.find_rects()
+
+                # cropped = frame[mw.y1:mw.y2,mw.x1:mw.x2]
+                # cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
+                # _, threshold = cv2.threshold(cropped_gray, threshold_value, 255, 1 )
+                # # Calculate frame duration 
                 # frame_time_last = frame_time
                 # frame_time = cap.get(cv2.CAP_PROP_POS_MSEC) 
 
             
-            contours, hierarchy = cv2.findContours(threshold, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            # contours, hierarchy = cv2.findContours(threshold, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
             
-            y_points = []                                               # clear y_point list
-            for contour in contours:
-                if (area_max_value < cv2.contourArea(contour) < area_min_value):
-                    boundingRect = cv2.boundingRect(contour);
-                    if (boundingRect[3] > 35):                          # filter contours based on height
-                        cv2.rectangle(cropped,boundingRect,(255,0,0),1) # display
-                        y_points.append(boundingRect[1])                # add to list of y points
+            # y_points = []                  
+            # contours = filter_contours(contours,area_min_value,area_max_value)                             # clear y_point list
+            # for contour in contours:
+            #     boundingRect = cv2.boundingRect(contour);
+                
+            #     if (boundingRect[3] > 35):                          # filter contours based on height
+
+            #         cv2.rectangle(frame,boundrect2rect(boundingRect,mw.x1,mw.y1),(255,0,0),1) # display
+            #         y_points.append(boundingRect[1])                # add to list of y points
                         
             # histogram = []                                              # clear "histogram" of y points
             # for y in range(0,mw.h):
             #     histogram.append(y_points.count(y))
-            #     cv2.line(cropped,(0,y),(y_points.count(y)*3,y),(0,0,255),1)     # display histogram
+            #     cv2.line(frame,(0,y),(y_points.count(y)*3,y),(0,0,255),1)     # display histogram
                 
             # histogram = np.array (histogram)                            # convert to numpy array
 
@@ -104,18 +153,18 @@ if __name__ == '__main__':
             #             break;
 
             # diplaying data
-            cv2.rectangle(frame,(mw.x_1,mw.y_1),(mw.x_2,mw.y_2),(0,0,255),1)
+            cv2.rectangle(frame,(mw.x1,mw.y1),(mw.x2,mw.y2),(0,0,255),1)
             # cv2.rectangle(frame, (x_h+10,y_l), (x_h + 200, y_l + 150), (0,0,0), -1)
             # cv2.putText(frame,text='{:.2f}px'.format(-np.average(diff))
             #             ,org=(x_h+15,y_l+25),color=(0,0 , 255)
             #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
-            cv2.putText(frame,text='{:.3f}ms'.format(fps.time_since_last(cap.get(cv2.CAP_PROP_POS_MSEC)))
-                        ,org=(mw.x1+15,mw.y2+20),color=(0,0 , 255)
-                        ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
-            cv2.putText(frame,text='{:.3f}ms'.format(fps.avg)
+            # cv2.putText(frame,text='{:.3f}ms'.format(vg.fps_meas.time_since_last())
+            #             ,org=(mw.x1+15,mw.y2+20),color=(0,0 , 255)
+            #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
+            cv2.putText(frame,text='{:.3f}ms'.format(vg.fps_meas.avg)
                         ,org=(mw.x1+15,mw.y2+60),color=(0,0 , 255)
                         ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
-            cv2.putText(frame,text='{:.3f}ms'.format(fps.max)
+            cv2.putText(frame,text='{:.3f}ms'.format(vg.fps_meas.max)
                         ,org=(mw.x1+15,mw.y2+100),color=(0,0 , 255)
                         ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
             # cv2.putText(frame,text='{:.2f}px/ms'.format((-np.average(diff))/(frame_time-frame_time_last))
@@ -123,17 +172,22 @@ if __name__ == '__main__':
             #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
             
             # threshold
-            cv2.imshow("thr", threshold)
+            cv2.imshow("thr",sc.measwin_frame)
 
             cv2.imshow("frame", frame)
 
             # add click event
             cv2.setMouseCallback('frame', click_event)
             
-            key = cv2.waitKey(10)
+            key = cv2.waitKey(1000)
             
             if key == 27:
                 break
-
+        
+    print(sc.bd_rects)
     cv2.destroyAllWindows()
-    cap.release()
+    vg.stop()
+    # cap.release()
+
+
+# https://stackoverflow.com/questions/60816436/open-cv-rtsp-camera-buffer-lag
