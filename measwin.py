@@ -1,4 +1,5 @@
 import cv2
+import numpy
 
 class MeasWin:
     def __init__(self, x1, y1, x2, y2):
@@ -23,8 +24,8 @@ class MeasWin:
 
     def calculate_w_h(self):
         self.verify_points()
-        self.height = self.y1 - self.y1
-        self.weight = self.x1 - self.x2
+        self.h = self.y2 - self.y1
+        self.w = self.x2 - self.x1
 
     def new_first_corner(self,x,y):
         self.new_x1 = x
@@ -67,14 +68,35 @@ class SpeedCalc():
         cropped = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
         _, self.measwin_frame = cv2.threshold(cropped, self.threshold, 255, 1 )
 
-    def find_rects(self):
+    def find_rects(self, show_bd_rects = True):
         contours, _ = cv2.findContours(self.measwin_frame, 
                                         cv2.RETR_LIST, 
                                         cv2.CHAIN_APPROX_SIMPLE)
-        # filter contours
+
         contours = [contour for contour in contours if \
                     (self.area_min < cv2.contourArea(contour) < self.area_max)]
 
         self.bd_rects = [cv2.boundingRect(contour) for contour in contours]
-        print(self.bd_rects)
+
+        if show_bd_rects:
+            for bd_rect in self.bd_rects:
+                cv2.rectangle(self.frame,(bd_rect[0]+self.measwin.x1,
+                                          bd_rect[1]+self.measwin.y1, 
+                                          bd_rect[2],bd_rect[3]),(255,0,0),1)
+
+    def calc_speed(self, show_histogram = True):
+        y_points = []
+        for bd_rect in self.bd_rects:
+            y_points.append(bd_rect[1])
+        
+        histogram = []
+
+        for y in range(self.measwin.h):
+            y_count = y_points.count(y)
+            histogram.append(y_count)
+            if show_histogram:
+                cv2.line(self.frame,(self.measwin.x1, y + self.measwin.y1),
+                                    (self.measwin.x1 + y_count*5,y + self.measwin.y1),
+                                    (0,0,255),1)
+        
         

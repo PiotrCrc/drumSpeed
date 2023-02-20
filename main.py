@@ -11,6 +11,7 @@ class VideoGet:
         self.stream = cv2.VideoCapture(src)
         (self.grabbed, self.frame) = self.stream.read()
         self.stopped = False
+        self.new_frame = False
 
     def start(self):    
         Thread(target=self.get, args=()).start()
@@ -22,6 +23,7 @@ class VideoGet:
                 self.stop()
             else:
                 (self.grabbed, self.frame) = self.stream.read()
+                self.new_frame = self.grabbed
                 self.fps_meas.time_since_last()
 
     def stop(self):
@@ -87,14 +89,14 @@ if __name__ == '__main__':
             fps.set_act()
             
             first_run = False
-
-        if vg.grabbed:
+        if vg.new_frame:
+            vg.new_frame = False
             ret, frame = vg.grabbed, vg.frame
 
             if ret:     
                 sc.prepare_measwin_frame(frame)
                 sc.find_rects()
-
+                sc.calc_speed()
                 # cropped = frame[mw.y1:mw.y2,mw.x1:mw.x2]
                 # cropped_gray = cv2.cvtColor(cropped, cv2.COLOR_BGR2GRAY)
                 # _, threshold = cv2.threshold(cropped_gray, threshold_value, 255, 1 )
@@ -179,12 +181,11 @@ if __name__ == '__main__':
             # add click event
             cv2.setMouseCallback('frame', click_event)
             
-            key = cv2.waitKey(1000)
+            key = cv2.waitKey(1)
             
             if key == 27:
                 break
         
-    print(sc.bd_rects)
     cv2.destroyAllWindows()
     vg.stop()
     # cap.release()
