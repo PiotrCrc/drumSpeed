@@ -1,5 +1,6 @@
 import cv2
-import numpy
+import numpy as np
+from collections import defaultdict
 
 class MeasWin:
     def __init__(self, x1, y1, x2, y2):
@@ -48,6 +49,8 @@ class SpeedCalc():
         self.frame = None
         self.measwin_frame = None
         self.bd_rects = None
+        self.histogram = None
+        self.last_histogram = None
     
     def set_threshold(self, threshold):
         self.threshold = threshold
@@ -85,18 +88,29 @@ class SpeedCalc():
                                           bd_rect[2],bd_rect[3]),(255,0,0),1)
 
     def calc_speed(self, show_histogram = True):
-        y_points = []
+        y_dict = defaultdict(int)
         for bd_rect in self.bd_rects:
-            y_points.append(bd_rect[1])
-        
-        histogram = []
+            y_dict[bd_rect[1]] =+ 1
 
-        for y in range(self.measwin.h):
-            y_count = y_points.count(y)
-            histogram.append(y_count)
-            if show_histogram:
+        self.last_histogram = self.histogram
+
+        self.histogram = np.array([0]*self.measwin.h)
+        for key, val in y_dict.items():
+            self.histogram[key] = val
+        
+        self.histogram = np.convolve(self.histogram, [0,2.5,5,2.5,0], 'valid')
+        
+        if show_histogram:
+            y = 0
+            for val in self.histogram:    
                 cv2.line(self.frame,(self.measwin.x1, y + self.measwin.y1),
-                                    (self.measwin.x1 + y_count*5,y + self.measwin.y1),
+                                    (self.measwin.x1 + int(val*5),y + self.measwin.y1),
                                     (0,0,255),1)
+                y += 1
         
-        
+        if (self.histogram is not None) and (self.last_histogram is not None):
+            if (len(self.histogram) == len(self.last_histogram)) and (len(self.histogram) > 30):
+                offset_result = []
+                for offset in range(1,20):
+                    offset_result.append(sum(self.histogram[19:-1]-self.last_histogram[20-offset:-offset]))
+                print(offset_result)
