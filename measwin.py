@@ -98,7 +98,7 @@ class SpeedCalc():
         for key, val in y_dict.items():
             self.histogram[key] = val
         
-        self.histogram = np.convolve(self.histogram, [0,2.5,5,2.5,0], 'valid')
+        #self.histogram = np.convolve(self.histogram, [0,2.5,5,2.5,0], 'valid')
         
         if show_histogram:
             y = 0
@@ -109,8 +109,7 @@ class SpeedCalc():
                 y += 1
         
         if (self.histogram is not None) and (self.last_histogram is not None):
-            if (len(self.histogram) == len(self.last_histogram)) and (len(self.histogram) > 30):
-                offset_result = []
-                for offset in range(1,20):
-                    offset_result.append(sum(self.histogram[19:-1]-self.last_histogram[20-offset:-offset]))
-                print(offset_result)
+            corr = np.correlate(self.histogram,self.last_histogram, mode='full')
+            shift = np.argmax(corr) - len(self.last_histogram) + 1
+            print(shift)
+            
