@@ -44,7 +44,7 @@ def boundrect2rect(br,offset_x = 0,offset_y = 0):
     return((x+offset_x,y+offset_y,w,h))
 
 if __name__ == '__main__':
-    mw = MeasWin(150,200,320,400)
+    mw = MeasWin(435,100,735,600)
     sc = SpeedCalc(mw,35,2000,8000)
     fps = FpsMeas(array_size=30)
 
@@ -56,11 +56,11 @@ if __name__ == '__main__':
 
     cv2.setTrackbarPos('Threshold', 'thr', 50)
     cv2.setTrackbarPos('Area_max', 'frame', 8000)
-    cv2.setTrackbarPos('Area_min', 'frame', 2000)
-
+    cv2.setTrackbarPos('Area_min', 'frame', 1000)
 
     def click_event(event, x, y, flags, params):
         if event == cv2.EVENT_LBUTTONDOWN:
+            print(f"down at : {x}, {y}")
             mw.new_first_corner(x,y)
         elif event == cv2.EVENT_LBUTTONUP:
             print(f"up at : {x}, {y}")
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         if first_run:
             cv2.setTrackbarPos('Threshold', 'thr', 50)
             cv2.setTrackbarPos('Area_max', 'frame', 8000)
-            cv2.setTrackbarPos('Area_min', 'frame', 2000)
+            cv2.setTrackbarPos('Area_min', 'frame', 1000)
             fps.set_act()
             
             first_run = False
@@ -160,13 +160,13 @@ if __name__ == '__main__':
             # cv2.putText(frame,text='{:.2f}px'.format(-np.average(diff))
             #             ,org=(x_h+15,y_l+25),color=(0,0 , 255)
             #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
-            # cv2.putText(frame,text='{:.3f}ms'.format(vg.fps_meas.time_since_last())
-            #             ,org=(mw.x1+15,mw.y2+20),color=(0,0 , 255)
-            #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
             cv2.putText(frame,text='{:.3f}ms'.format(vg.fps_meas.avg)
+                        ,org=(mw.x1+15,mw.y2+20),color=(0,0 , 255)
+                        ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
+            cv2.putText(frame,text='{: 6.1f}px/100ms'.format(sc.avg_spd_100ms)
                         ,org=(mw.x1+15,mw.y2+60),color=(0,0 , 255)
                         ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
-            cv2.putText(frame,text='{:.3f}ms'.format(vg.fps_meas.max)
+            cv2.putText(frame,text='{: 6.1f}px/500ms'.format(sc.avg_spd_500ms)
                         ,org=(mw.x1+15,mw.y2+100),color=(0,0 , 255)
                         ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
             # cv2.putText(frame,text='{:.2f}px/ms'.format((-np.average(diff))/(frame_time-frame_time_last))

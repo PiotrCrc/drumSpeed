@@ -51,6 +51,9 @@ class SpeedCalc():
         self.bd_rects = None
         self.histogram = None
         self.last_histogram = None
+        self.avg_spd_array = []
+        self.avg_spd_100ms = 0.0
+        self.avg_spd_500ms = 0.0
     
     def set_threshold(self, threshold):
         self.threshold = threshold
@@ -111,5 +114,10 @@ class SpeedCalc():
         if (self.histogram is not None) and (self.last_histogram is not None):
             corr = np.correlate(self.histogram,self.last_histogram, mode='full')
             shift = np.argmax(corr) - len(self.last_histogram) + 1
-            print(shift)
-            
+            self.avg_spd_array.append(shift)
+        if len(self.avg_spd_array) > 25:
+            self.avg_spd_array.pop(0)
+            self.avg_spd_500ms = sum(self.avg_spd_array)
+            self.avg_spd_100ms = sum(self.avg_spd_array[-5:])
+
+
