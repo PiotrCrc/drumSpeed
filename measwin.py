@@ -121,3 +121,25 @@ class SpeedCalc():
             self.avg_spd_100ms = sum(self.avg_spd_array[-5:])
 
 
+class MeasChart():
+    def __init__(self) -> None:
+        self.img = np.zeros((480,640,3), dtype=np.uint8)
+        self.clear()
+        self.last_x = 1
+        self.last_y = 240
+
+    def draw_new_point(self,y):
+        if self.last_x > 639:
+            self.clear()
+            self.last_x = 1
+        new_point = (self.last_x+1, 240+int(y))
+        cv2.line(self.img, (self.last_x,self.last_y),new_point ,(255,0,0), 1)
+        self.last_x += 1
+        self.last_y = new_point[1]
+
+    def clear(self):
+        cv2.rectangle(self.img,(0,0),(640,480),(255, 255, 255),-1)
+        cv2.line(self.img,(0,240),(640,240),(0,0,0),1)
+
+
+

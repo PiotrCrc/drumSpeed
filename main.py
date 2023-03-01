@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
 import sys
-from measwin import MeasWin, SpeedCalc
+from measwin import MeasWin, SpeedCalc, MeasChart
 from fpsmeas import FpsMeas
 from threading import Thread
+import time
 
 class VideoGet:
     def __init__(self, src=0):
@@ -22,6 +23,7 @@ class VideoGet:
             if not self.grabbed:
                 self.stop()
             else:
+                #time.sleep(0.030)
                 (self.grabbed, self.frame) = self.stream.read()
                 self.new_frame = self.grabbed
                 self.fps_meas.time_since_last()
@@ -47,8 +49,10 @@ if __name__ == '__main__':
     mw = MeasWin(435,100,735,600)
     sc = SpeedCalc(mw,35,2000,8000)
     fps = FpsMeas(array_size=30)
+    mc = MeasChart()
 
     cv2.namedWindow('thr')
+    cv2.namedWindow('chart')
     cv2.namedWindow('frame')
     cv2.createTrackbar('Threshold', 'thr', 0, 255, sc.set_threshold)
     cv2.createTrackbar('Area_max', 'frame', 0, 10000, sc.set_area_max)
@@ -71,6 +75,7 @@ if __name__ == '__main__':
     # cap = cv2.VideoCapture(0)
     # cap = cv2.VideoCapture(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=1")
     vg = VideoGet(f"rtsp://{sys.argv[1]}:{sys.argv[2]}@192.168.8.20/cam/realmonitor?channel=1&subtype=0")
+    #vg = VideoGet("20221107_110104.mp4")
     vg.start()
 
     my_filter = []
@@ -169,6 +174,7 @@ if __name__ == '__main__':
             cv2.putText(frame,text='{: 6.1f}px/500ms'.format(sc.avg_spd_500ms)
                         ,org=(mw.x1+15,mw.y2+100),color=(0,0 , 255)
                         ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
+            mc.draw_new_point(sc.avg_spd_100ms)
             # cv2.putText(frame,text='{:.2f}px/ms'.format((-np.average(diff))/(frame_time-frame_time_last))
             #             ,org=(x_h+15,y_l+95),color=(0,0 , 255)
             #             ,fontScale=1,fontFace=cv2.FONT_HERSHEY_DUPLEX)
@@ -177,6 +183,8 @@ if __name__ == '__main__':
             cv2.imshow("thr",sc.measwin_frame)
 
             cv2.imshow("frame", frame)
+
+            cv2.imshow("chart",mc.img)
 
             # add click event
             cv2.setMouseCallback('frame', click_event)
