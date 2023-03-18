@@ -41,7 +41,8 @@ class MeasWin:
             self.calculate_w_h()
 
 class SpeedCalc():
-    def __init__(self, measwin : MeasWin, threshold, area_min, area_max) -> None:
+    def __init__(self, measwin : MeasWin, threshold, area_min, area_max, mode = 1) -> None:
+        self.mode = mode  # define constants
         self.measwin = measwin
         self.threshold = threshold
         self.area_min = area_min
@@ -54,6 +55,7 @@ class SpeedCalc():
         self.avg_spd_array = []
         self.avg_spd_100ms = 0.0
         self.avg_spd_500ms = 0.0
+        self.contours = []
     
     def set_threshold(self, threshold):
         self.threshold = threshold
@@ -79,21 +81,28 @@ class SpeedCalc():
                                         cv2.RETR_LIST, 
                                         cv2.CHAIN_APPROX_SIMPLE)
 
-        contours = [contour for contour in contours if \
+        # filter contours by area
+        self.contours = [contour for contour in contours if \
                     (self.area_min < cv2.contourArea(contour) < self.area_max)]
 
-        self.bd_rects = [cv2.boundingRect(contour) for contour in contours]
+        self.bd_rects = [cv2.boundingRect(contour) for contour in self.contours]
 
         if show_bd_rects:
             for bd_rect in self.bd_rects:
                 cv2.rectangle(self.frame,(bd_rect[0]+self.measwin.x1,
-                                          bd_rect[1]+self.measwin.y1, 
-                                          bd_rect[2],bd_rect[3]),(255,0,0),1)
+                                        bd_rect[1]+self.measwin.y1, 
+                                        bd_rect[2],bd_rect[3]),(255,0,0),1)
 
     def calc_speed(self, show_histogram = True):
         y_dict = defaultdict(int)
-        for bd_rect in self.bd_rects:
-            y_dict[bd_rect[1]] =+ 1
+
+        if self.mode == 0:
+            for bd_rect in self.bd_rects:
+                y_dict[bd_rect[1]] += bd_rect[3]
+        elif self.mode == 1:
+            for contour in self.contours:
+                for point in contour:
+                    y_dict[point.item(1)] += 1    
 
         self.last_histogram = self.histogram
 
@@ -107,7 +116,7 @@ class SpeedCalc():
             y = 0
             for val in self.histogram:    
                 cv2.line(self.frame,(self.measwin.x1, y + self.measwin.y1),
-                                    (self.measwin.x1 + int(val*5),y + self.measwin.y1),
+                                    (self.measwin.x1 + int(val),y + self.measwin.y1),
                                     (0,0,255),1)
                 y += 1
         
