@@ -56,7 +56,16 @@ class SpeedCalc():
         self.avg_spd_100ms = 0.0
         self.avg_spd_500ms = 0.0
         self.contours = []
-    
+
+    def corellate_window(array_old, array_new, max_shift = 25):
+        assert 2 * max_shift <= len(array_new), "max_shift should be at least 2x array len"
+        assert len(array_old) == len(array_new), "arrays must be the same size"
+        results = []
+        for i in range(max_shift):
+            results.append(np.correlate(array_old[:-max_shift],array_new[i:-max_shift+i])[0])
+        return results.index(max(results))
+
+
     def set_threshold(self, threshold):
         self.threshold = threshold
 
@@ -120,10 +129,12 @@ class SpeedCalc():
                                     (0,0,255),1)
                 y += 1
         
-        if (self.histogram is not None) and (self.last_histogram is not None):
-            corr = np.correlate(self.histogram,self.last_histogram, mode='full')
-            shift = np.argmax(corr) - len(self.last_histogram) + 1
-            self.avg_spd_array.append(shift)
+        # if (self.histogram is not None) and (self.last_histogram is not None):
+        #     corr = np.correlate(self.histogram,self.last_histogram, mode='full') # this need to be changed for higly similar paterns in y axis
+        #     shift = np.argmax(corr) - len(self.last_histogram) + 1
+        
+        self.avg_spd_array.append(self.corellate_window(self.last_histogram,self.histogram, max_shift = 25)) # to be tested
+
         if len(self.avg_spd_array) > 25:
             self.avg_spd_array.pop(0)
             self.avg_spd_500ms = sum(self.avg_spd_array)
